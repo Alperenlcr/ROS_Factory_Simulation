@@ -1,0 +1,263 @@
+3.0.1 TurtleBot Introduction
+
+
+What is the TurtleBot:
+{
+A list of manufacturers can be found at: http://www.turtlebot.com/manufacturers/.
+
+The main items that comprise the TurtleBot 2 model from bottom to top in the preceding image are as follows:
+	A mobile base (Kobuki Base) that also serves as support for the upper stages of the robot
+	A netbook (ROS Compatible) resting on a module plate
+	A vision sensor with a color camera and 3D depth sensor
+	Other module plates used to hold items
+Overall, the TurtleBot model stands about 420 mm (16.5 inches) high and the base is approximately 355 mm (14 inches) in diameter.
+
+TurtleBot rests on the floor on two wheels and a caster. The base is configured as a differential drive base, which means that when the TurtleBot is moving, the rotational velocity of the wheels can be controlled independently. So, for example, TurtleBot can move back and forth in a straight line when the wheels are driven in the same direction, clockwise (CW) or counterclockwise (CCW), with the same rotational velocity. If the wheels turn at different rotational velocities, TurtleBot can make turns as the velocity of the wheels is controlled.
+
+The vision sensor, as shown in the preceding image of TurtleBot2, is an Xbox 360 Kinect sensor manufactured by Microsoft. Originally designed for video games, the Kinect sensor is a popular vision and depth sensor for robotics.
+}
+
+The rqt_graph is used to give a visual representation of all nodes and topic.
+
+Ros services not concern with the TurtleBot, concerns with the mobile_base
+
+3.0.2 Hands-on practice Part 1
+3.0.3 Hands-on practice Part 2
+3.0.4 Hands-on practice Part 3
+3.0.5 Hands-on practice Part 4
+3.0.6 Hands-on practice Part 5
+
+test run Hands-on:
+
+In this section, we will use RViz to visualize what the robot is doing. RViz is a great tool for debugging and we will use it for the rest of the course. 
+
+First, launch the TurtleBot world.
+$ roslaunch turtlebot_gazebo turtlebot_world.launch
+
+Now, we will open up a pre-configured RViz file in a second CCS. 
+$ roslaunch turtlebot_rviz_launchers view_robot.launch
+
+So what are we going to visualize in RViz? Let's do Odometry! Remember that, Odometry is the use of data from motion sensors to estimate change in position over time. 
+
+In a new CCS let's echo the odometry topic.
+$ rostopic echo /odom
+
+This will keep the data updated; however, since the robot is not moving there is not much to change. You will just see fluctuations around the values.
+
+So let's move the robot to see change in those values!! 
+
+We have learned 3 ways to move the turtlebot, so let's use them - (Remember to use only one at the time)
+
+The first one is publishing directly on the CCS.
+$ rostopic pub -r 10 /cmd_vel_mux/input/teleop geometry_msgs/Twist '{linear: {x: 0.1, y: 0, z: 0}, angular: {x: 0, y: 0, z: -1}}'
+
+The second one is using the keyboard_teleop functionality
+$ roslaunch turtlebot_teleop keyboard_teleop.launch
+
+The third one is using our python script to control the turtlebot
+$ rosrun hrwros_week3 drive_turtlebot_circle.py
+
+Now you should see the values change in the /odom topic
+
+Let's move over now to RViz in order to visualize the odometry
+
+Go to the RVIZ window and change the following settings:
+
+Under Global options on the left side panel for Fixed frame, change base_link or base_footprint to odom.
+Change fixed frame
+
+Click on Add, and select the By topic tab.
+Choose /odom -> odometry and click on OK.
+Add Odometry
+
+Make sure the topic name is /odom, uncheck the covariance checkbox and set the Keep value to 10.
+Rviz result
+
+After changing all of this you should see the turtlebot moving in RViz and arrow's in the direction it's moving.
+
+You can change some additional settings based your personal preference.
+
+
+3.1.1 Ready for intelligence?
+
+
+You can move the Turtlebot using the following methods:
+
+Teleoperation
+Using the command line (CCS)
+Using scripts
+
+
+3.1.2 What is necessary for navigation?
+
+
+In order to navigate in any environment, we need a few key elements. For a robot this is no different. What we need is:
+
+A map of the environment
+The current location on the map (localization)
+A route to take (path planning)
+Obstacle avoidance
+
+
+3.2.1 Mapping theory
+
+
+We have two representations for a map:
+	Topological representation which is basically a graph.
+	Metric representation which is a detailed description of how the environment looks like
+	
+In a lot of robotic applications we will not have a pre-existing map. In that case we will need to make a map ourselves using the robot of course the process of creating a map is called mapping.
+Simultaneous localization and mapping: That means the robot is building a map while keeping track of its own position
+
+SLAM stands for Simultaneous Localization and Mapping.
+
+
+3.2.2 Mapping with Turtlebot
+
+
+The Turtlebot uses a SLAM implementation called “gmapping”, and a laser scanner to gather information about the environment and build a map. The information gathered from the laser scan is processed by the slam_gmapping node. After that it published to a map topic.
+
+
+3.3.1 Localization theory
+
+
+Localization methods are grouped into two categories: Global and Local.
+
+Global:
+	Give a location with respect to the world
+	Often inaccurate compared to local methods
+	For example: GPS or Wi-Fi hotspots
+
+Local:
+	Give a location with respect to local sensor feedback
+	Can be highly accurate compared to global methods
+	For example laser scanner and on-board cameras
+
+
+3.3.2 Map registration
+
+
+Local sensor readings can give accurate positioning with respect to obstacles in the map, but there may be multiple places on the map that look the same.
+Location can be narrowed down by estimating a range of positions a robot is likely to be by tracking how much the robot moves and by taking many measurements.
+
+
+3.3.3 Mapping and Localization Tutorial
+
+
+***Mapping Tutorial***
+
+In this tutorial you will be guided to map the TurtleBot_world using gmapping. First of all, we have to start our Gazebo simulation.
+
+$ roslaunch turtlebot_gazebo turtlebot_world.launch
+Next, open up a second CCS. It may require a bit of patience for Gazebo to start. In the second CCS we will view the active ROS nodes.
+
+$ rosnode list
+Look if there is a node with slam or gmapping in its name. You should not see those in the list of nodes. Next, we will open up the gmapping_demo launch file. Remember that gmapping is a specific SLAM implementation.
+
+$ roslaunch turtlebot_gazebo gmapping_demo.launch
+After that, open up a third CCS and check the active ROS nodes again. You should see the /slam_gmapping node is now active. Let's look at the topics this node is publishing and subscribing to.
+
+$ rosnode info /slam_gmapping
+Under subscription we can see /scan, through which the this nodes receive the information gathered by the laser scanner. We also see this node is publishing to the map topic of the environment as expected.
+
+To visualize the mapping process, let's open up RViz. We can open up a 'blank' RViz window and add our robot model and further settings. However, it's easier to load up a configuration. Run the following command in a third CCS.
+
+$ roslaunch turtlebot_rviz_launchers view_navigation.launch
+
+To make everything clearer, you will need to change some settings:
+	Set LaserScan/size(m) to 0.06
+	Set LaserScan/style to 'flat squares'
+	Set Localmap/Costmap/Topic to /map
+	Set Globalmap/Costmap/Topic to /map
+Right now, we are ready to go. If we now move the robot around the environment, the mapping process should start. To do so, we can use teleoperation. Run this in a fourth CCS.
+
+$ roslaunch turtlebot_teleop keyboard_teleop.launch
+Press the z key few times to slow the robot down. Because we are creating a map with a metric representation, it will be sensitive to noise. To ensure the quality of the map, move around slowly and try to keep an object in sight at all time.
+
+After moving around for a while you will have created a great map. This map will be very useful when we want to navigate the world. However, we need to save it somewhere. In a fifth CCS run the following command.
+
+$ rosrun map_server map_saver -f $HOME/<choose a directory>/test_map
+Notice the we named our map test_map. If you browse to the directory specified in the previous command we will find 2 files:
+
+test_map.pgm and test_map.yaml
+Open the First file. You can see that this file contains a picture of the environment similar to this one.
+
+Next, open the first file. You will see that it points to the .pgm file, and contains further information about the resolution, origin, etc. It should look similar to the following figure.
+
+***Localization Tutorial***
+
+So, we have seen how to create a map of the environment. Now we will load our map and try to get the TurtleBot to localize itself properly.
+
+First of all, let's open the TurtleBot in Gazebo. In the first CCS enter:
+
+$ roslaunch turtlebot_gazebo turtlebot_world.launch
+Right now, we will need to open up the nodes responsible for localization. In the second CCS execute:
+
+$ roslaunch turtlebot_gazebo amcl_demo.launch map_file:=$HOME/<directory of map>/test_map.yaml
+Note that the map file used should the yaml file. So the previous command should end with something like map_file:=$HOME/test_map.yaml, if you saved the map file in your home folder.
+
+The amcl stands for Adaptive Monte Carlo Localization. This is a probabilistic localization system for a robot moving in 2D which uses a particle filter to track the pose of a robot against a known map. The known map in this case is the one we just created.
+
+Finally in a third CCS we will open up RViz to visualize the navigation.
+
+$ roslaunch turtlebot_rviz_launchers view_navigation.launch
+
+The round black circle is the TurtleBot. It's surrounded by green arrows which are probabilistic estimates of its actual position.
+
+Then you see the edges from the square as in our original map. One of its edges is purple with (and a thin white line form the laser scan is on it). This is one of 'measurements' the robot has take to localize itself. So now we have to move the robot and let it take more measurements to improve localization.
+
+Run this in a fourth CCS to teleoperate the robot.
+
+$ roslaunch turtlebot_teleop keyboard_teleop.launch
+Now move the robot around and observe the green arrows around it. Since we get more certainty about where the robot is, the arrows should come close and closer indicating more a more accurate probabilistic model.
+
+The position of the robot should also be positioned correctly on the map. Take a look at Gazebo to see whether that's true.
+
+This can be done easier if you could just give the TurtleBot a hint of where it's. RViz provides us with a tool to do so. The 2D Pose estimate.
+
+
+3.4.1 Path planning theory
+
+
+This decision can depend on a lot of constraints such as time, cost, or road conditions.
+
+
+3.4.2 ROS navigation stack
+
+
+The ROS Navigation Stack is meant for 2D maps, square or circular robots with a holonomic drive, and a planar laser scanner, all of which a Turtlebot has. It uses odometry, sensor data, and a goal pose to give safe velocity commands.
+
+The node “move_base” is where all the magic happens in the ROS Navigation Stack.
+
+Uses a global and local planner to accomplish the navigation goal.
+
+Manages communication within the navigation stack.
+
+Sensor information is gathered (sensor sources node), then put into perspective (sensor transformations node), then combined with an estimate of the robots position based off of its starting position (odometry source node). This information is published so that “move_base” can calculate the trajectory and pass on velocity commands (through the base controller node).
+
+***Path planning tutorial***
+
+In previous tutorials, we have seen how to create a map and localize the robot properly in the environment. In this section we will take it a step further, and make the robot navigates to a goal position autonomously. 
+
+First of all, let's open the TurtleBot in Gazebo. In the first CCS enter: 
+
+$ roslaunch turtlebot_gazebo turtlebot_world.launch
+Right now, we will need to open up the nodes responsible for localization and navigation, on a second CCS execute:
+
+$ roslaunch turtlebot_gazebo amcl_demo.launch
+The amcl stands for Adaptive Monte Carlo Localization. This is a probabilistic localization system for a robot moving in 2D which uses a particle filter to track the pose of a robot against a known map (the default one is none is specified). This launcher also starts the move_base node, which is responsible for planning and controlling the movements of the robot. 
+
+Finally in a third CCS we will open up RViz to visualize the navigation. 
+
+$ roslaunch turtlebot_rviz_launchers view_navigation.launch
+Right now we are ready to go.
+
+Use the 2D post estimate button on the top of your RViz screen if you want to change the initial localization of the robot on the map.
+
+Afterwards, use the 2D Nav goal to give the robot a target position to move to. Then, watch the TurtleBot as it generates a path and tries to follow it. 
+
+Now, to test the unknown obstacle avoidance functionality. Give the robot a target position far away. When you see the generated map, add an extra obstacle in Gazebo. This can be easily done using the top menu.
+
+Watch how the TurtleBot maneuvers around the obstacle then gets back to the original path. This is done using the local planner.
+
+SLAM (Simultaneous Localization and Mapping) and AMCL (Adaptive Monte Carlo Localization) are awesome.

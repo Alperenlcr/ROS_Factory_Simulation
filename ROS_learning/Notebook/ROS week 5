@@ -1,0 +1,340 @@
+Introduction
+
+
+Pre-programmed manipulation is used in traditional automation and static environments, and dynamic manipulation is possible by using cameras for detection.
+
+The main idea:
+	Robot vision is inspired by image processing.
+		It includes detection and recognition.
+	In this course we will use a logical camera which has two important features.
+		It detects, recognizes, and provides the pose of an object.
+		It integrates information with ROS TF package.
+Goals of this week:
+
+	Add a logical camera:
+		Inspect and use the received data.
+	Basics of the ROS TF package:
+		Specify poses in a reference frame.
+		Create and view the ROS TF tree.
+		Transform pose.
+		
+
+5.1 Logical camera
+
+
+Logical cameras output model names and poses.  
+	The models are created as .stl/.dae files.
+	It detects an object by the intersection of the camera frustum with the object.
+Disclaimers:
+	Logical cameras are only simulation concepts.
+	Real-world applications use 2D/3D cameras.
+This course: Find the pose of an object for successful manipulation.
+
+We as users indeed have to provide models that we want the logical camera to detect, as .stl/.dae files which can be created using tools like Blender, Meshlab or SolidWorks.
+
+
+5.1.1 Logical camera in the factory simulation
+
+
+Basic Concepts of a Gazebo world file:
+	A world file is used to create simulation models for the Gazebo physics simulator.
+		The models are defined using the simulation description format (.sdf)
+		Multiple .sdf models composed a world file.
+		.sdf files are similar to URDF (introduced in week 2) But they have more features, such as  friction or non-robotic elements.
+		URDF models are spawn into Gazebo using an spawner ROS node.
+	Functionality if the models can be configured using plugins.
+		We have created a logical camera plugin for this course.
+		
+For this course, the models can be found in the models folder of the hrwros_gazebo ROS package
+hrwros_gazebo/models
+The camera model file can be found in:
+	hrwros_gazebo/models/logical_camera/model.sdf 
+What objects can be detected by the logical camera:
+	config/conveyor_objects.yaml
+	simple box object
+We can include .sdf models to our world with the include tag. 
+
+
+5.1.2 Logical camera - configuration
+
+
+in sdf --->>>  <pose>posex posey posez rotationx rotationy rotationz</pose>
+The orientation is defined using normal Euler1 angles: Roll, Pitch, Yaw.  To avoid confusions, we will always provide you these orientations during the course.
+
+Go to the models folder:
+
+A model for the logical_camera already exists.
+It has a model.config, and a model.sdf file.
+The .config files contain administrative information.
+
+Contents of the model.sdf file:
+<
+It has a name unique to the camera. Different cameras will need different, unique names.
+The plugin specification simulates the functionality of the camera.
+The namespace is a prefix to the ROS topics published by the logical camera.
+It is also possible to implement camera noise, but we won't use that in this course.
+There is also a unique link name like for 'normal' robots in the world.
+Lastly, there is a sensor element, which has a name and a type. The sensor name should be unique for every camera. The type on the other hand, can be the same for all cameras.
+These unique names will be used when the topics will be published, so pay attention.
+The sensor element defines all information about the camera properties, such as FOV and aspect ratios(En-boy oranları).
+/>
+
+
+5.1.3 Logical camera accessing data
+
+
+The logical camera outputs models and poses of objects. The poses contain position and orientation information which are defined in the reference frame of the camera. This information is published as a ROS Topic:
+
+$ rosmsg show hrwros_gazebo/LogicalCameraImage.msg -r
+$ rosmsg show hrwros_gazebo/Model
+
+The model message type has a string placeholder for the model name and a pose of the model itself.
+
+ROS Topic contents for the logical camera:
+
+Make sure the factory simulation is running, or launch it with:
+$ roslaunch hrwros_gazebo hrwros_environment.launch
+
+Print poses of the objects seen by the logical camera:
+$ rostopic echo /hrwros/logical_camera
+
+The command publishes the models detected by the logical camera with their corresponding pose information.
+In the model sdf files, we define model names that will be used by the logical camera to publish the name information.
+The logical camera plugin can be configured to only publish objects that are known. But we will not do this.
+
+
+5.2 Introduction to TF
+
+
+The two robots are uncertain about the location of the TurtleBot. This is where TF comes to the rescue!
+
+Launch, and look at the argument between the robots:
+$ roslaunch hrwros_gazebo hrwros_enviroment.launch
+$ rosrun hrwros_week5 robot_squabblers.py
+
+ROS TF:
+	Keeps track of spatial and temporal relationships:
+		Using reference frames in 3D.
+		Provides a framework to represent rotations.
+		Uses the Right-Hand Rule.
+
+
+5.2.1 TF Reference Frames
+
+
+Creation of reference frames:
+	ROS Package: robot_state_publisher
+		joint state information for turtlebot: /joint_states topic
+		joint state information for maniputlators: /combined_joint_states topic
+		robot_description parameter - URDF/XACRO (hrwros.xacro)
+	A fixed reference frame for "world"
+	A joint_state_publisher publishes combines information to the combined_joint_states topic 
+		source_list combines joint states of the robot arms
+	Another joint_state_publisher publishes information the joint_states topic only for the turtlebot
+	Load the URDF on to the parameter server <include file="$(find hrwros_support)/launch/load_hrwros.launch"/>
+		Contains robot_description that gets updated with the URDF elements.
+	Use of URDF to define where different objects are. 
+Location of the reference frame
+	The origin tag <origin xyz="-7.8 -1.5 0"/>
+	Objects are defined via links which are connected via joints
+	Frames are defined on joint origins
+
+
+5.2.2 TF Reference Frames: Rviz Visualization
+
+
+To launch the factory simulation, with visualization on RViz and NOT the Gazebo gui
+You need to add the arguments: gui:=false rviz:=true to the hrwros_environtment launcher.
+$ roslaunch hrwros_gazebo hrwros_environment.launch gui:=false rviz:=true
+
+TF frames are updated by both the robot description parameter and the joints state information.
+
+
+5.3 A basic introduction to tf2_ros
+
+
+tf2_ros package:
+	Implements functional aspects, and actively maintain relations.
+	Transform pose: allows for "time travel" - look up the spatiotemporal relation.
+Information representation:
+	Quantification
+		3D transformation.
+		ROS topic: /tf (tf2_msgs/TFMessage)
+tf command line tools:
+	Print transformation
+	$ rosrun tf tf_echo <source_frame> <target_frame>
+	(rosrun tf tf_echo world robot2_pedestal_link)
+	
+	View the "TF tree"
+	$ rosrun tf view_frames
+	or
+	$ rosrun rf2_tools view_frames.py
+	
+	Publish a static transform
+	$ rosrun tf2_ros static_transform_publisher <trans> <rot> "parent" "child"
+	
+	tf_echo (static and dynamic):
+		tf_echo (static):
+			Query transform that never moves in our environment.
+			Prints latest information with 1Hz.
+			Fixed with each other (equal times).
+			Outputs translation and quaternion .
+
+Launch factory environment without gazebo gui
+$ roslaunch hrwros_gazebo hrwros_environment.launch gui:=false
+
+Monitor a static tf transformation
+$ rosrun tf tf_echo world robot2_pedestal_link
+
+Monitor a dynamic tf transformation
+$ rosrun tf tf_echo world robot2_forearm_link
+
+
+5.3.1 ROS command line tools
+
+
+Query timing:
+	Transform information is continuously updated.
+	Transform information publishes on the /tf topic.
+	No guarantee that the query and publication time is the same!
+		Query for a transform in a future will result in:
+		"Particular source or target frame" passed to lookupTransform argument source_frame does not exist
+	Errors go away once the desired frames are refreshed or become available.
+
+Using tf view_frames to generate a full tf tree:
+	view_frames generates a pdf containing the full TF  tree
+	It's necessary to have the factory simulation running on a separate CCS.
+	Execute tf view_frames with
+	$ rosrun tf view_frames
+	A PDF called frames.pdf will be created on the same folder where we run this command.
+	Open the frames.pdf with a pdf reader outside the CCS.
+	Zoom in to inspect the tf tree in detail.
+
+
+5.3.2 tf/tf2 ros command line tools - static_transform_publisher
+
+
+$ roslaunch hrwros_gazebo hrwros_environment.launch
+
+Then, open a new CCS, source it, and run the following command:
+$ rosrun tf2_ros static_transform_publisher 0 0 0 0 0 0 1 test_parent test_child
+
+Notice, we have called the parent frame test_parent and the child frame test_child. After running the command above, we see a new ROS node is created, that is publishing a static transform. It will keep running until it is killed.
+
+We can actually kill the transform we created at the start, and make a new one between a new TF, and an already existing transform:
+$ rosrun tf2 ros_static_transform_publisher 0 0 0 0 0 0 1 map test_child
+
+Then, if we create the TF tree again, we will see that the tree is completely connected again! If we new ask tf_echo to tell us the connections between test_child and base_link, it will be happy to tell us.
+
+
+5.3.3 Simple APIs of tf2_ros
+
+
+Simple API commands:
+
+TF Buffer: Cache transform information
+	tf2_buffer = tf2_ros.Buffer() # Default 10.0 s
+	tf2_buffer = tf2_ros.Buffer(rospy.Duration(<desired_duration>)
+TF Listener: Subscribes to the /tf topic
+	tf2_listener = tf2_ros.TransformListener(tf2_buffer)
+Transform pose
+	tf2_buffer.lookup_transform()
+	tf2_buffer.transform()
+TF Buffer: concept
+	tf2_buffer stores information for specified duration
+		Stores tf messages of the /tf topic
+		Buffer always has the latest transform information
+		Resolves almost all errors 
+
+
+5.3.4 tf2_ros simple API - lookup_tranform, transform
+
+
+You can find it on the scripts folder for hrwros_week5 package.
+
+That script actually uses the tf2 API to find the relative positions of the TurtleBot, so, let's take a look at the robot_squabblers.py script file to find out how it was done.
+
+We have the necessary rospy and tf2_ros imports.
+There are two lists of strings, that actually contain the conversation lines between the robots.
+
+But let's dive into the robot_squabblers() function:
+It first initializes a ROS node called robot_squabblers.
+It then creates a tf buffer, which we learned about in the last lecture. If you don't remember exactly, don't be afraid to go back and re-watch it if you need to! Since we don't create any specific buffer length, it will go with the default length of 10 seconds.
+Then, we associate the buffer to a tf listener, so that transform information on the tf topic is constantly updated to the tf buffer, as soon as these topic values become available.
+Then, we have some helper variables for updating information regarding the transforms, and for displaying the little conversation in the console.
+
+The meat is in the while loop:
+We look up the transforms between the robot 1 and 2 base links, and the TurtleBot base link. The last argument is a way to indicate that we would like the last available information from the tf buffer.
+The API returns both translation and rotation information separately, but in this script, we only use the translation information. This used to be the case in the tf package. With tf2_ros, the lookup_transform API returns a geometry_msgs/TransformStamped message which contains both translation and rotation information in one message.
+The rest of the script assembles the text lines the robots speak, and prints them to the terminal.
+The rate_pub and rate_listener helper variables help keep the conversation speed right: The robots will wait a bit between sentences, and wait until at least one bit of information is inside the tf buffer.
+It is always good practice to put code that looks up transform information in a try-catch block, even if you check if there are messages available beforehand! This prevents warnings and errors.
+Finally, keep in mind that the transform lookup API returns a transform message. This looks similar to a pose message, but is not the same!
+
+
+5.3.5 tf2_ros simple API lookup_transform, transform
+
+
+Script
+{
+This time, we will be looking at the transform_object_pose.pt script, you can also find it on the scripts folder of hrwros_week5 package
+
+Again, we see a list of necessary imports, which includes rospy, the tf2_ros module, and a bunch of necessary message modules.
+We also create a new tf buffer and listener, like in the previous video.
+Note: On the files you will get, the tf Buffer and TransformListener are created after the initialization of the ROS Node (Line 77)
+
+In the callback function for the logical camera, we can see that the logical camera provides us with a lot of information about the pose of an object in the reference frame of the logical camera itself.
+The API transform can only work with poses that have a timestamp, because the transform might be influenced by a moving robot part. You can't always use the current pose of a link, sometimes you have to look at the past when the pose was generated!
+Thus, the script creates a new header and time stamp information.
+After that, we update the pose information using information from the logical camera.
+Now, we have everything we need for the transform API. We will transform the pose of the object from the camera reference frame to the world reference frame.
+}
+
+Prepare everything needed for the script to work
+{
+Make sure the factory environment simulation is running. Don't forget to verify that all robots have shown up!
+
+$ roslaunch hrwros_gazebo hrwros_environment.launch
+
+Robot 1 is currently in the FOV of the camera. We don't want this, so let's use MoveIt! Commander in a new CCS to move it out of the way.
+$ rosrun hrwros_week4 hrwros_moveit_commander_cmdline
+
+R1Home is a suitable position for it.
+> use robot1
+> go R1Home
+
+Now the arm is out of the way, let's spawn in an object on the conveyor belt!
+
+In a new, sourced, CCS shell, execute the following command:
+$ rosservice call /spawn_object_once
+
+Now you can see a white box object on the conveyor belt near robot 1 in Gazebo. Let's find out what the logical camera can see:
+$ rostopic echo /hrwros/logical_camera
+
+Search for a model of the type "object" in the output in the console.
+It will tell you the position and rotation of the white box with respect to the camera frame.
+}
+
+Run the transform_object_pose script
+{
+Switch to a new, sourced CCS shell, and run the script:
+$ rosrun hrwros_week5 transform_object_pose.py
+
+You can now see the output of the script in the terminal.
+	The first pose is the pose of the object in the world reference frame.
+	The second pose is the pose of the object in the camera reference frame.
+	Using the right-hand rule, you can verify the poses are correct!
+	Again, during this course, we will take care of the rotations for you.
+}
+
+The lookup_transform API in the tf2_ros package always provides the latest transform information between the source and target reference frames. This is true only if we specify rospy.Time() as the third argument. See the TF documentation on lookup_transform API here (http://wiki.ros.org/tf2)
+
+
+Additional:
+real world robot vision solutions using ROS leverage open source libraries
+such as the Point Cloud Library (PCL)
+and the Open Computer Vision (OpenCV) library
+for object detection, recognition and pose estimation.
+Nowadays, deep learning based solutions are also becoming extremely popular
+for Robot vision solutions
+using Deep learning frameworks such as Tensor Flow.

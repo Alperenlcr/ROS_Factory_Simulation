@@ -1,0 +1,372 @@
+Fundamental ROS concepts, Completed
+
+A ROS node is a data or information processing software unit. All functional requirements for a ROS application will be implemented
+as ROS Nodes. Typically, a ROS Node is implemented in Python or C++ and the idea of ROS nodes ensures
+that we can have functional modularity in large ROS projects. These are software processes that do 'stuff' (e.g. process data, command hardware, execute algorithms).
+
+A ROS topic is an entity that is used to transport information between nodes.
+This way multiple ROS nodes can interact with each other by exchanging relevant information
+as required by the ROS application.
+
+
+First and foremost, we setup the ROS environment by sourcing the workspace setup files.
+Then, we have several ways to proceed forward.
+
+Six commands that help us find our way around.
+Three utility commands to find information regarding nodes once we have started a ROS application namely:
+
+"rosnode list"
+This command prints a list of all running nodes on the terminal.
+
+"rqt_graph"
+Which provides a visual representation of the different nodes and the way they interact with each other.
+
+"rosnode info <node name>"
+This command prints node specific information on the terminal.
+
+
+Information is organized in a ROS topic as a data structure. That is, a topic can be created out of a collection of basic data types such as strings, integers, floating point numbers and so on.
+
+Then, three more utility commands for finding information on ROS topics namely:
+
+*rostopic list*
+This command lists all topics by their names and these are the topics being exchanged between nodes.
+
+*rostopic info <topic name>*
+This command prints information regarding the data structure used to store information in the specific topic.
+
+*rostopic echo <topic name>*
+This command continuously prints the contents of the specified topic on to the terminal screen.
+
+There is always a *forward slash* before a node name or a topic name.
+
+*****************************************************
+Build your own ROS Application, Incomplete
+
+1.3 ROS application introduction
+1.3.1/1.3.2 Build your own ROS Application - Publisher and subscriber nodes
+
+Publisher Nodes
+A ROS node that generates information is called a publisher. A publisher sends information to nodes via topics. With robotics often these publishers are connected with sensors like cameras, encoders, etc.
+
+Subscriber Nodes
+A ROS node that receives information is called a subscriber. It's subscribed to information in a topic and uses topic callback functions to process the received information. With robotics, subscribers typically monitor system states such as triggering an alert when the robot reaches joint limits.
+
+{
+	Publisher node - Example code
+			
+	## Node to publish a string topic.
+	import rospy
+	from std_msgs.msg import String
+
+	def simplePublisher():
+	    simple_publisher = rospy.Publisher('topic_1', String, queue_size = 10)
+	    rospy.init_node('node_1', anonymous = False)
+	    rate = rospy.Rate(10)
+	    
+	    # The string to be published on the topic.
+	    topic1_content = "my first ROS topic"
+	    
+	    while not rospy.is_shutdown():
+	    	simple_publisher.publish(topic1_content)
+		rate.sleep()
+		
+	if __name__== '__main__':
+	    try:
+		simplePublisher()
+	    except rospy.ROSInterruptException:
+		pass
+
+
+
+	Subscriber node - example code
+			
+	## Node to subscribe to a string and print the string on terminal.
+	import rospy
+	from std_msgs.msg import String
+
+	# Topic callback function.
+	def stringListenerCallback(data):
+	    rospy.loginfo(' The contents of topic1: %s', data.data)
+
+	def stringListener():
+	    rospy.init_node('node_2' , anonymous = False)
+	    
+	    rospy.Subscriber('topic_1' , String, stringListenerCallback)
+	    
+	    # spin() simply keeps python from exiting until this node is stopped
+	    rospy.spin()
+
+	if __name__ == '__main__':
+	    stringListener()
+}
+
+1.3.3 ROS File system
+
+ROS workspace (catkin workspace) consists of different subspaces. A workspace is a folder to organize ROS project files. ROS uses catkin, which is a build tool to compile source files into binary files. Your code goes into the src workspace folder and catkin manages the other ones. A catkin ROS workspace contains three main spaces:
+
+src space: contains source code, this will be your main work folder.
+devel space: contains setup files for the project ROS environment.
+build space: contains the compiled binary files. Along with these files, the devel folder also contains the executables of your source files for development and testing.
+
+The log files containing debug information associated with the various software modules in a project are in the logs folder, called the log space.
+ROS package : Which can be used to organize different functional modules in a ROS software application.
+command catkin init : make the workspace folder into a catkin workspace.
+
+IN A PACKAGE:
+	There are two files namely, CMakeLists.txt and package.xml. The presence of these two files are what makes a normal folder into a ROS 		package.
+	Normally, the src folder is used for functionality implemented as C++ source files.
+	And the scripts folder is used for functionality implemented as Python scripts.
+
+How to create a new ROS package:
+	A new ROS package can be created using the command catkin_create_pkg <new_package_name> <new package dependencies> after 			cd <path_to_ros_ws>/src
+	<new package dependencies> --> std_msgs
+catkin_create_pkg Play_Ground std_msgs
+	All dependencies of a newly created ROS package are automatically listed in the package.xml file inside the ROS package folder.
+
+	With the command rosdep install <package name>, you automatically install all dependencies of your new package.
+	An even better option would be to do this for all your ROS packages at once. cd <path_to_ros_ws>/src
+	rosdep install --from-paths . --ignore-src -y
+
+
+
+1.3.4 Custom message types
+
+How to create custom ROS message types for our own ROS applications.
+In ROS, the message types are defined in message files!
+The message files are defined in the msgs ros package in the msg folder with the naming convention, <NewMessageType>.msg.
+Define new message types in the <path-to-ws>/src/hrwros/hrwros_msgs/msg folder.
+
+Example: Ultrasound distance sensor.
+{
+	We want to construct a new message type called SensorInformation. It should contain:
+
+	A ROS message type for interfacing with distance sensors
+	A string containing the manufacturer name
+	An unsigned integer containing the sensor part number
+	We would create the following file: $HOME/hrwros_ws/src/hrwros/hrwros_msgs/msg/SensorInformation.msg.
+
+	It will contain the following:
+	sensor_msgs/Range sensor_data
+	string maker_name
+	uint32 part_number
+
+	We can see something really interesting here: We use an already derived message, sensor_msgs/Range, and simply add a string and an 	integer to it. So we can create new message types using already existing derived message types! This idea of stacking is really useful in 	ROS, since you can easily re-use what already exists. So in the above example, the sensor_msgs/Range already contains everything we need 	from the range sensor itself, and we only add the maker name and the part number.
+}
+
+Topics are strongly associated with only one message type.
+
+1.3.5 Define and build custom message types
+
+Create the file and contents as shown below (in msg folder):
+	Detail the data types the message type will contain
+	And then some comments detailing the data entries
+	{
+		# Example message file <SensorInformation.msg>
+		sensor_msgs/Range sensor_data # placeholder for the ROS message type for interfacing with distance sensors
+		string maker_name             # placeholder for manufacturer name
+		uint32 part_number            # placeholder for part number of the sensor
+	}
+add the name to the add_message_files section in the CMakeLists.txt file
+Finally, run the catkin build command
+
+You can see all created message types by typing
+$ rosmsg show sensor_msgs/
+and hitting the Tab key.
+
+1.3.6 Publisher node with custom message type
+
+after 1.3.5 !!
+create code in package then .publish, .loginfo, ... use right syntax and functions in code 
+
+1.3.7 Subscriber ROS node with a custom message type
+
+Don't forget to start publisher
+
+
+
+1.4 ROS Services
+
+The nomenclature for ROS services: One ROS node is the service server. It advertises a service, and makes it available to other nodes. Another node is the service client. It sends a request message to the service server once the service is available.
+
+One important quality of services is that they are blocking: They stop the execution of program flow until the response has been received. This is useful for sequential behaviours. It also makes it desirable to have quickly executable computations for the service callback, so that the program is blocked for the least amount of time. There is also no going back on a service call: Once a request has been made, it will be processed until a response is sent. It can't be interrupted.
+
+-rosservice list-
+can be used to list all available ROS services in a running ROS application.
+
+-rosservice call <service name> <arguments corresponding to the service request field>-
+a ROS service can be called using the command
+The result of executing the service call will be populated in the response field.
+
+A "service server" ROS node "advertises" a ROS service. As a result, this service is now available for all other ROS nodes. Similarly, a "service client" ROS node "calls" a ROS service. That is, a service client can send a request message to the service server once the service is available. And, the outcome of service execution, will be populated to the response message by the service server.
+
+services are defined in the srv folder.
+
+1.4.1 ROS Services code illustration: Service server part 1
+
+In msg/srv/ create .srv file
+float64 distance_metres     # Request message: Distance in (m) to be converted to (ft)
+---                         # Demarcation
+float64 distance_feet       # Response message: Distance in (ft) after conversion
+bool success                # Response message: Success or failure of conversion
+
+
+Now, just like we did for messages, we add our new service to the CMakeLists.txt file
+
+Finish by building our service by running the catkin b command. We can check if it worked correctly by using the rossrv command:
+rossrv show hrwros_msgs/ConvertMetresToFeet
+rossrv show hrwros_msgs/ConvertMetresToFeet -r
+The terminal should show the request message field, and the response message field.
+
+1.4.1 ROS Services code illustration: Service client part 2
+
+Using the service server & client
+First, make sure you are in the hrwros_msgs folder. Start roscore in a separate terminal. Then, source our setup files and run our server, and:
+$ $HOME/hrwros_ws/devel/setup.bash
+$ rosrun hrwros_week1 metres_to_feet_server.py
+
+The service is now available. Time to also start the ROS client in a separate terminal:
+$ $HOME/hrwros_ws/devel/setup.bash
+$ rosrun hrwros_week1 metres_to_feet_client.py
+
+The terminal will both display the request and response messages.
+
+
+1.5 ROS Actions client server communication
+
+We don't always want blocking execution. ROS Actions allow non-blocking execution. This way, multiple things can happen at the same time. They are a generalized request-response system (as for services): a client-server infrastructure.
+
+There are a few ROS commands to interact with actions:
+
+"rosrun actionlib_msgs genaction.py <path_to_action_file>"
+Generates action messages manually
+
+"rosmsg show <stack_name>_msgs/<ActionMessage>"
+Shows the contents of an action message
+
+ROS actions have a few functions available to process requests:
+
+The goalCallback function processes a goal request.
+Goal statuses: ACTIVE, SUCCEEDED, ABORTED.
+Nomenclature:
+
+Action server: A ROS node that advertises an action, so that other nodes can request action goals to be processed.
+Action client: A ROS node that sends goal requests to the action server.
+
+Actions are defined by three message types:
+
+A goal (request),
+The result (response),
+And feedback.
+
+example 
+{
+uint32 num_counts     # Goal field
+---                   # Separator
+string result_message # Result field
+---                   # Separator
+uint32 counts_elapsed # Feedback field
+}
+
+
+1.5.1 ROS Actions action message and goal processing
+
+The action generator script displays 7 actions:
+
+Specified actions:
+1) CounterWithDelayFeedback
+2) CounterWithDelayGoal
+3) CounterWithDelayResult
+
+Additional actions which are used internally by the actionlib package:
+4) CounterWithDelayActionFeedback
+5) CounterWithDelayActionGoal
+6) CounterWithDelayAction
+7) CounterWithDelayActionResult
+
+The action client code is something that we as users develop to leverage the facilities of the actionlib ROS package.
+
+We will use 1,2,3,6.
+The action client code is something that we as users develop to be able to leverage the facilities of the actionlib ROS package.
+
+CounterWithDelayAction.msg is an aggregation of the other action messages. This is the action type of our action client. Meaning number 6 contains number 1,2,3 in it.
+
+Action server topics
+
+Feedback topic is published by the action server an has action feedback message type
+Action server subscribers to the cancel topic and is of the GoalID type
+
+how to create and implement action type
+1.5.2 ROS Actions code illustration: Part 1
+
+Create an action file in msg in action (look example above)
+
+Now we update the CMakeLists.txt file with the vim editor in the action files subsection. (#L25) 
+CounterWithDelay.action (#L27)
+
+We need to add the actionlib package that provides all the ROS action functionalities. We need to add it at all dependancy locations. (#L4,37,45)
+actionlib actionlib_mgs 
+
+Update the package.xml file also with the dependency. (#L21)
+Now run catkin build.
+
+{
+	If we type the complete action name $ rosmsg show hrwros_msgs/CounterWithDelayAction you will see the complete message definition. 
+
+	We need to pay attention to where our message definitions are located as a lot of the message is for the actionlib package. 
+
+	If you want to see the message definition, you can go to the hrwros_msgs package folder.
+	$ roscd hrwros_msgs
+
+	And  run the following script. 
+	$ rosrun actionlib_msgs genaction.py -o msg action/CounterWithDelay.action
+
+	There we find all the action definitions. 
+	$ rosmsg show hrwros_msgs/
+}
+
+1.5.2 ROS Actions code illustration: Part 2
+
+The relevant imports and the python class implementation of the action server. Followed by the defined feedback and result messages. Then we initialise the action server. After that, we start the action server with the start function. Now the execute callback function needs to be configured. In the final part, we first create the ROS node for the action server. Then we instantiate the action server implementation by initialising it with the name of the node. 
+
+Now to the action client. First, you have the imports followed by a simple action client.
+After that, you wait for the server to become available. Then we create a goal message.
+We can include a blocking functionality or perform other actions while the action is being processed. Lastly, we return the result. 
+
+$ rosrun hrwros_week1 counter_with_delay_as.py
+$ rosrun hrwros_week1 counter_with_delay_ac.py
+
+You can see while the goal is being progressed you can do other things. We can verify this with the following code. 
+$ rostopic echo /counter_with_delay/feedback
+
+
+1.6 ROS Launch Files
+
+We can start all our ROS nodes together in one terminal with launch files.
+
+The idea is to group ROS nodes in one file. The code for the nodes themselves is still in separate files, but we link them in one launch file, which we can launch with a single command. It also allows for passing arguments, node specific parameters, and namespaces. They allow for much more, but for now, we will focus our attention on the arguments and parameters. 
+
+Let's look at a small example. You can see how the different nodes are started, and how the action server uses a parameter to launch.
+
+{
+	<?xml version="1.0"?>
+	<launch>
+	    <!--Argument to the launch file-->
+	    <arg name="counter_delay_parameter" default="1.0"/>
+
+	    <!--Start the metres_to_feet service server ROS node-->
+	    <node name-"metres_to_feet" pkg="hrwros_week1" type-"metres_to_feet_server.py" output="screen"/>
+
+	    <!--Start the action server ROS node-->
+	    <node name="counter_with_delay" pkg-"hrwros_week1" type="counter_with_delay_as.py" output="screen">
+		<param name="counter_delay" type="double" value="$(arg counter_delay_parameter)"/>
+	    </node>
+	</launch>
+}
+It is common practice to follow a naming convention of <package_name>_<file_name>.launch
+It is also possible to include launch files from different packages in one launch file.
+
+Use of arguments to launch files allows us to change values within launch files by specifying them
+along with the launch command. Uses of parameters allows us to configure some of the functionalities
+of our ROS nodes.
+

@@ -1,0 +1,272 @@
+4.0 Manipulation
+
+
+MoveIt! >>> a ROS package for manipulation (tool)
+Plan and execute motions - the "move_group" ROS node.
+
+
+4.1 Manipulation Basic Concepts
+
+
+Manipulation consists of multiple successive steps. These steps are also known as functional modules.
+
+We need to sense the environment somehow.
+We need to plan the motion we wish to perform.
+We need to check we won't collide with anything while moving.
+We need to calculate our trajectory and how fast we want to go.
+
+
+4.2 Manipulation with Movelt!
+
+
+About MoveIt:
+	Software for manipulation, easy integration with ROS
+	Often used for serial link manipulators
+	Configure and use functionalities associated with manipulation
+Under the hood:
+	Information consistency
+	Integrate kinematic information
+	Collision detection
+	Takes account for any hardware limitations
+	Keeps track of Robot location
+	Communicate with hardware/simulation
+Users perspective:
+	Move_group ROS node
+	several ROS services and actions
+	Configuring the move_group node
+	robot-description (URDF/XACRO)
+	robot semantic description (SRDF)
+	joint limits, planners, etc.
+
+
+4.3.1 MoveIt! Setup Assistant - Part 1
+
+
+Launch the setup assistant:
+roslaunch moveit_setup_assistant setup_assistant.launch
+Add URDF file path and load the model.
+
+Steps:
++ Self-Collision Checking:Here we set up information regarding what pairs of robot links should be checked for collision. This saves execution time.
+MoveIt! does so by sampling random joint values and checking if the configuration collides
+This is done using the collision geometry of the URDF files. This process provides a list of link pairs that can be disabled because the can never collide with each other.
++ Virtual joints are an optional step to give MoveIt! a fixed reference in our world this is handy for robot arms on mobile platforms.
+Define that our URDF is a fixed reference point with respect to robot1_base_link. The same needs to be done for robot2_base_link.
++ Planning Groups indicate a set of links and joints for which we intend to plan motions using MoveIt! We want to do this for our two robot arms.
+Add Group
+	Give the group a name
+	Kinematic Solver: trac_ik_kinematics_plugin/TRAC_IKKinematicsPlugin
+	Group Default Planner: RRTConnect
+	Add Kinematic Chain
+		start: robot1_base_link
+		end: vacuum_gripper1_suction_cup
+This needs to be done for any number of robots we would like to control with MoveIt!
+
+
+4.3.2 MoveIt! Setup Assistant - Part 2
+
+
++ Robot Poses define sets of joint values for particular planning groups. In this context in MoveIt! poses are defined as sets of joint values.
++ End Effectors, we can define the set of links and joints. Also, we can let MoveIt! plan our end effectors. 
++ Passive Joints specify one or multiple robot joints as passive. MoveIt! will then consider these joints as not available for planning.
++ Author Information is required as this generates a ROS package.
++ Generate Configuration Files Displays files with information about the choices we made in the previous steps so the MoveGroup node can use it.
+
+
+4.3.3 MoveIt! Setup Assistant - MoveIt! configuration package
+
+
+Required additional steps:
+1 - Remap /joint_states to /combined_joint_states
+In order to complete the MoveIt! configuration, it's necessary to remap the /joint_state topic to /combined_joint_states to be able to handle the different robots on the simulations. To achieve this follow the following steps:
+	Open the file move_group.launch in the newly generated hrwros_moveit_config/launch folder.
+	Go to line 73, just under the string <param name="disable_capabilities" value="$(arg disable_capabilities)"/>
+	Add the following string below this line:
+		<remap from="/joint_states" to="/combined_joint_states"/>
+	Lines 72 and 73 of move_group.launch file should look like this:
+	    <param name="disable_capabilities" value="$(arg disable_capabilities)"/>
+	    <remap from="/joint_states" to="/combined_joint_states"/>
+2 - Change trajectory_execution/allowed_start_tolerances
+In order to ensure the correct work of the controllers. It's also necessary to change the allowed_start_tolerances parameters. To achieve this follow the following steps:
+	Open the file trajectory_execution.launch.xml in the newly generated hrwros_moveit_config/launch folder.
+	Go to line 14, find the string  <param name="trajectory_execution/allowed_start_tolerance" value="0.01"/> <!-- default 0.01 -->
+	Change the parameter value to "0.1"
+	Line 14 should look like this:
+		<param name="trajectory_execution/allowed_start_tolerance" value="0.1"/> <!-- default 0.01 -->
+
+
+4.3.4 MoveIt! Setup Assistant - configuring controllers
+
+
+About controllers
+
+We are focusing now on how to execute the motion, that's where controllers come in play!
+	Trajectories are executed on simulated robots or real hardware, and they are controlled by controllers.
+	Gazebo uses controllers to control the motion and to know the poses and status of the robot.
+	MoveIt! plans movements and send those movements to the controllers in Gazebo.
+
+Components of Gazebo and MoveIt!
+
+Gazebo uses:
+	JointStateController  to publish current joint values (like a sensor)
+	JointTrajectoryController to control the execution of trajectories sent by MoveIt!
+MoveIt! uses:
+	Planning scene monitor to update position of things it know (robot arms or other objects)
+	Simple Controller Manager to send the desired movements to the trajectory controller.
+
+hrwros_gazebo
+
+In hrwros_gazebo, all controller files live under the config folder.
+	Joint state controllers contain a name, a type, and a publishing frequency.
+		They are defined on the rX_joint_state_controller.yaml file
+	Trajectory controllers contain a name, a type, a list of associated joints, the gains, their constraints, and some other 		information to do with tolerances.
+		They are defined on the robotX_controller.yaml file
+		
+Controllers are provided as ROS action servers: They need to be powered by nodes! We can launch them using launch files. The launchers are found on the launch folder.
+	The spawn_robots.launch file contains these settings for the two controllers of each robot.
+	
+hrwros_moveit_config
+
+In hrwros_moveit_config the controller files are also under the config folder.
+You need to create a new file named controllers.yaml to list all the controller clients that MoveIt! is going to use.
+Fill in that file with the name of the controllers including their namespace, their action namespaces, their type, and the joints they control (from the gazebo controller), the contents should look like this:
+{
+controller_list:
+ - name: robot1/robot1_controller
+   action_ns: follow_joint_trajectory
+   type: FollowJointTrajectory
+   joints: ["robot1_elbow_joint",
+           "robot1_shoulder_lift_joint",
+           "robot1_shoulder_pan_joint",
+           "robot1_wrist_1_joint",
+           "robot1_wrist_2_joint",
+           "robot1_wrist_3_joint"]
+ - name: robot2/robot2_controller
+   action_ns: follow_joint_trajectory
+   type: FollowJointTrajectory
+   joints: ["robot2_elbow_joint",
+           "robot2_shoulder_lift_joint",
+           "robot2_shoulder_pan_joint",
+           "robot2_wrist_1_joint",
+           "robot2_wrist_2_joint",
+           "robot2_wrist_3_joint"]
+}
+Finally, we need a launcher file for our MoveIt! controller manager file, where we define a name, which controller manager system we want to use from MoveIt!, and the file from the previous point where we defined the controller. So go to the launcher folder and open edit the hrwros_moveit_controller_manager.launch.xml file.
+
+Now, we are all set to actually move our robot arms!
+
+
+4.4 MoveIt! Commander
+
+
+Launch MoveIt! Commander:
+Start the Gazebo simulation and verify if the robot arms and the turtlebot are correctly displayed.
+$ roslaunch hrwros_gazebo hrwros_environment.launch
+
+Start the command line tool to send motion commands to the robot.
+$ rosrun hrwros_week4 hrwros_moveit_commander_cmdline
+
+MoveIt! commander commands
+List all usable commands
+> help
+Select the "group" to use
+> use <group_name>
+Plan and execute motion from stored positions (srdf)
+> go <named_target>
+Plan and execute linear motions
+> go <up | down | left | right | forward | backward> <distance_in_m>
+Get current joint state and pose
+> current
+Execute multiple commands
+> load <path_to_script_file/scrip_file_name>
+
+
+4.5 Move Group interface
+
+
+API --> Application Programming Interface
+MoveGroup Interface:
+	APIs access capabilities of move_group ROS node
+	MoveIt!-base ROS applications
+	Setup a simple pick and place pipeline using ROS action clients
+Conceptual overview:
+	MoveIt takes care of trajectory execution (with Gazebo or hardware) 
+	MoveGroup Interface sends these trajectories (MoveIt! Commander uses this implicitly)
+Why:
+MoveIt! commander scripts
+	Program sequence of commands
+Why learn MoveGroup Interface to do the same thing?
+	Access more capabilities
+	Process intermediate results
+	Flexibility
+Automated behavior
+	Motion module is just one component
+	User input should just be one press
+
+
+4.5.1 Pick & Place: Part 1
+
+
+MoveGroup Interface has a couple of different functions to interface with its API:
+	set_named_target (<"robot joint configuration">) - set a certain robot configuration as target
+	plan() - plans a motion to the goal
+	get_current_pose() - get pose of the end effector and joint configuration
+	compute_cartesian_path (<waypoints>, <resolution>, <jump_threshold>, <collision_checking=True>
+	send_goal(<robot goal>) - sends the goal to the action server
+The required modules related to MoveIt! are:
+	moveit_commander     - Tells python we work with MoveIt!
+	moveit_msgs.msg      - Loads the MoveIt! specific ROS messages
+	actionlib            - For the movement with actionlib.SimpleActionClient() 
+	geometry_msgs        - Loads the required messages for planning linear or cartesian spaced motions
+Further in the script:
+	The initialization of moveit_commander, and  ROS node named 'simple_pick_place'
+	Create move groups for each one of the robots.
+	Instantiate the two action clients, one for each robot, so they can use the execute_trajectory action server.
+	Use of the APIs from MoveIt!
+Since this API works via actions, we can start computing the next trajectory while the robot is still executing the current one.
+
+
+4.5.2 Pick & Place: Part 2
+
+
+Testing our pick and place pipeline:
+
+Start the factory simulation.
+$ roslaunch hrwros_gazebo hrwros_environment.launch
+
+Launch the node
+$ roslaunch hrwros_week4 hrwros_simple_pick_place.launch
+
+{
+Waypoints:
+	Poses of robot end effector
+	Timing synchronisation results in an incorrect pose
+		Issues with get_current_pose() API
+		Fixed with delay
+	current_pose = robot1_group.get_current_pose()
+	rospy.sleep(0.5)
+	current_pose = robot1_group.get_current_pose()
+
+Waypoints should only consist of pose messages
+Linear offsets with geometry_msgs.msg.Pose().
+Pose stamped messages consists of timing and reference frame information along with the pose message type.  The extraction of the pose message can be done as following: current_pose.pose.position.x +0.10
+}
+
+
+4.5.3 Pick & Place: Part 3
+
+
+Computing the linear motion:
+compute_cartesian_path() API
+	Considers current Pose and the starting waypoint
+	Uses the waypoints and two other  arguments
+	Checks for collision
+	Outputs
+		Plan - the trajectory of joint angles and
+		A fraction of successful attempts
+Update generated trajectory to the goal message and send it.
+
+Lastly, use the set_named_target("R1Place") to move the robot to the object. 
+
+Run the script to see the robot in action.  This concludes the Pick & Place code demonstration. 
+

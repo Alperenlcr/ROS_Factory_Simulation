@@ -1,0 +1,306 @@
+Introduction to Week 2
+
+
+Unified Robot Description Format. (URDF)
+
+We will treat the following topics in URDF:
+
+Basics of URDF
+Links, joints, geometry
+Model environments and robots
+Understanding URDF
+Add and remove simple objects
+Import complex models
+Limitations
+Tools
+
+
+2.1.1 Introduction to URDF
+
+
+URDF:
+	Domain-specific modelling language (DSML)
+	ROS specific file-format based on XML
+	Stores
+		Robot body layout (kinematic structure)
+		Appearance
+		Extra information (joint limits, mass, etc)
+	Uses names and concepts from the robotics domains
+URDF Implementation:
+	Text file
+	XML tags standardized in URDF standard
+	File references using Uniform Resource Locators (URLs)
+	3D mesh files
+Contents:
+	Mostly <link> and <joint> elements
+	<link>s: form the robot's structure
+	<joint>s: form the connections between links and set motion constraints
+Joint types:
+	Fixed: rigid connection, no motion
+	Revolute: support rotation in 1 dimension (along a single axis)
+	Continuous: unlimited variant of revolute joints
+	Prismatic: support translation in 1 dimension (along a single axis)
+	Planar: translation in two dimensions
+	Floating: unlimited motion (translation and rotation) in all 6 dimentions
+Standardisation:
+	REP 103 - Standard Units of Measure and Coordinate Conventions
+	ROS uses a right-handed coordinate system : X+ (forward); Y+ (left) then Z+ (up)
+	ROS uses SI units for everything:
+	Length: meters
+	Angles: radians
+	
+tiny_robot.urdf
+{
+	<robot name="tiny_robot">
+	   <link name="link_1"  />
+	   <link name="link_2"  />
+	   <join name="join_1" type="..">
+	      <parent link="link_1"  />
+	      <child link="link_2"  />
+	   </joint>
+	</robot>
+}
+In this example we have 2 links and 1 joint.
+The joint type still needs to be specified: ".." is not a valid joint type and ROS won't know what to do with it.
+If we draw this robot we might see something like this:
+\	link2
+.	joint1
+|	link1
+
+Tutorials
+
+Building a Visual Robot Model with URDF from Scratch 
+(http://wiki.ros.org/urdf/Tutorials/Building%20a%20Visual%20Robot%20Model%20with%20URDF%20from%20Scratch)
+
+Building a Movable Robot Model with URDF 
+(http://wiki.ros.org/urdf/Tutorials/Building%20a%20Movable%20Robot%20Model%20with%20URDF)
+
+You can find this package with the command roscd urdf_tutorial
+The files that are referred to in the tutorials are also available in the urdf_tutorial/urdf directory.
+
+
+2.1.2 Limitations and XACRO
+
+
+Limitations:
+	Robot description cannot be changed (immutability)
+	Only tree structures (no loops)
+	No <sensor></sensor> (no sensor models)
+	Low reusability of URDFs (composability)
+Limitation 1 - Immutability:
+	Result of typical control flow
+	Robot description read once from parameter server
+	No standardized way to notify 
+	Risk of desynchronization 
+Limitation 2 - No cycles:
+	Joint only have single parent and child
+	Only acyclic, directed graphs (or: trees) 
+	Real-world impact
+Limitation 3 - No sensor element:
+	Sensor meta-data can't be incorporated directly
+	Alternatives exist, but then the data is distributed
+	Diminishes value of URDF
+Limitation 4 - Low reusability:
+	Only a single <robot> tag in URDF
+	No support for import of remote files
+	Composite scenes have to be merged manually
+	No way to compose multiple URDFs
+	
+The solution to some of these problems can be XACRO (short for XML Macros)
+	Programmatic URDF generation
+	Templates
+	Parameters
+XACRO and Composability:
+	Import macros from other files
+	Parameterize templates
+	Composite robots & scenes easier:
+		import macro from file
+		Invoke macro
+XACRO - Needs conversion:
+	XACRO not directly compatible with URDF
+	Transformation needed with this command:
+	$ rosrun xacro xacro /path/to/robot.xacro > robot.urdf
+	Checks for valid XACRO file (but is not identical to check_urdf)
+
+XACRO example
+
+tiny_robot.xacro (macro snippet)
+{
+	...
+	<xacro:macro name="arm" params="parent arm_name">
+	   <link name="${arm_name}_link_1"  />
+	   <joint name="${arm_name}_joint_1" type="..">
+	      <parent link="${parent}"  />
+	      <child link='${arm_name}_link_1"  />
+	   </joint>
+	</xacro:macro>
+	...
+}
+Notice how this macro specifies it requires two parameters: parent and arm_name. The value of the arm_name parameter is used in the link and joint definition to ensure that names are unique, while the parent parameter is used to specify the name of the link this arm should be connected to in the URDF.
+
+To now create a robot with two arms, we can use the following structure:
+
+tiny_robot.xacro (snippet)
+{
+	...
+	<link name="torso"  />
+	...
+	<xacro:arm parent="torso" arm_name="left"  />
+	<xacro:arm parent="torso" arm_name="right"  />
+	...
+}
+And as always, to convert the entire XACRO file to URDF, we use the following command:
+
+  rosrun xacro xacro tiny_robot.xacro > tiny_robot.urdf
+
+This will cause the lines between <xacro:macro> and </xacro:macro> in the macro definition above to be automatically inserted (ie: copy-pasted) into the URDF file that will be generated by the conversion process.
+
+All of this makes XACRO a really powerful system: XACRO files can import other XACRO files, macros can call other macros and parameters can be used to add flexibility to macros.
+
+Tutorial
+
+Using Xacro to Clean Up a URDF File
+http://wiki.ros.org/urdf/Tutorials/Using%20Xacro%20to%20Clean%20Up%20a%20URDF%20File
+
+
+2.1.3 Checking for Correctness
+
+
+ROS provides us with a tool that we can use to verify the correctness of our URDFs: check_urdf. We can run it like so:
+
+  check_urdf robot.urdf
+
+This tool only checks the syntax though, so it checks whether we've only used legal combinations of recognized URDF keywords in our files. It cannot check whether you've correctly specified the mass of your robot links, whether the model that we've created makes sense or whether the colors that you've used correspond to what the manufacturer has used.
+
+One other thing that check_urdf cannot do directly is checking XACRO files.
+
+We can however verify the URDF that they will generate, so we can first convert them and then run check_urdf on the resulting file.
+
+So we first convert the XACRO file to URDF (this will generate the URDF file in the current working directory):
+
+  rosrun xacro xacro /path/to/robot.xacro > robot.urdf
+
+And then run check_urdf on that file:
+
+  check_urdf robot.urdf
+
+
+2.2 Changing Worlds
+
+
+A few notable parts of the URDF are:
+	A link named "world": a link that everything else is connected to
+	There are also links created that instantiate other URDF models like the conveyor belt
+	After importing all of the building blocks of the world, it is important to then connect them to the world using joints
+	The "parent link='..'" specifies to what something should be connected and the "child link='..'" specifies what it is 	that should be connected to the parent.
+	the origin element describes the relative offset between the parent and the child
+
+To remove a model from a URDF world two things must be removed:
+	The joint that connects it to its parent
+	The "macro call" that adds it to the world (model instantiations)
+
+
+2.3 Creating a Pedestal (Part 1)
+
+
+We will need to add two things: a link, and a joint. You will need to give it a name, and this name is important! It must be unique, and should make the purpose of the link clear.
+
+Before it will become visible in the simulation, we will need to give it a visual element.
+
+With the link and joint in place, we can take a look at what we've created. First, save the URDF, then switch to the terminal, and start the visualization launch file.
+
+How to create object in xacro file:
+{
+	<?xml version="1.0" ?>
+	<robot name="hrwros" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+	...
+
+	  <!-- robot2 to pedestal. -->
+	  <link name="robot2_pedestal_link">
+	    <visual>
+	      <geometry>
+		<box size="1 1 1" />
+	      </geometry>
+	    </visual>
+	  </link>
+
+	  <joint name="robot2_pedestal_joint" type="fixed">
+	    <parent link="world" />
+	    <child link="robot2_pedestal_link" />
+	  </joint>
+
+	...
+
+	</robot>
+}
+
+
+2.3 Finishing the Pedestal (Part 2)
+
+The box can be made taller by updating the "size" property (following the x, y, z convention of ROS to configure the width, length and height respectively).
+
+The default origin for primitive shapes is the center of the shape, which means that the box is half sunk into the floor. To fix this, the z offset of the origin needs to be changed to half the height of the pedestal.
+
+Colors are added by adding a "material" element. Since the pedestal is one solid color the "color" element is used to specify the color with rgba.
+
+To change the location of the pedestal, the offset from the world needs to be redefined. This is done by changing the x and y coordinates of the "origin" element within the joint that connects the pedestal to the world (note: not the definition of the origin in the primitive shape itself).
+
+How to create object in xacro file:
+{
+	<?xml version="1.0" ?>
+	<robot name="hrwros" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+	...
+
+	  <!-- robot2 to pedestal. -->
+	  <link name="robot2_pedestal_link">
+	    <visual>
+	      <origin="0 0 0.3" />
+	      <geometry>
+		<box size="0.3 0.3 0.6" />
+	      </geometry>
+	      <material name="robot2 pedestal color">
+	        <color rgba="0 0.16 0.53 1" />
+	      </material>
+	    </visual>
+	  </link>
+
+	  <joint name="robot2_pedestal_joint" type="fixed">
+	    <parent link="world" />
+	    <child link="robot2_pedestal_link" />
+	    <origin xyz="-7.8 -1.5 0" />
+	  </joint>
+
+	...
+
+	</robot>
+}
+
+rgba --> The last number defines how saturated the color or transparent the object is.
+
+
+2.4 Using Existing Models
+
+
+Importing a detailed model that was made by the ROS community is one of the advantages of ROS, allowing us to save time and work by using pre-existing models instead of having to create them ourselves.
+
+The import statement consists of a few parts:
+
+The xacro:include statement itself
+The filename attribute specifying the name of the file to import (using a package relative path)
+Finally, we also need to add the macro call, which will actually instantiate the model. To prevent nameclashes, we'll configure the new object to use a unique prefix (using the "prefix" parameter of the macro).
+
+To connect the robot to the factory, we will connect it to the pedestal rather than the world itself. This is so that if the pedestal ever needs to be moved, the robot will move with it, rather than having to update the robot's position manually. This is done by specifying the parent in the joint as the pedestal and the child as the robot.
+
+Finally, the orientation needs to be corrected. This is done by adding an rpy attribute to the origin element that specifies the orientation. As ROS uses radians for angles, we'll make use of the radians(..) convenience function which will do the conversion for us.
+
+{
+  <xacro:include filename="$(find ur_description)/urdf/ur5.urdf.xacro"/>
+  <xacro:ur5_robot prefix="robot2_" joint_limited="true"/>
+  <joint name="robot2-robot2_pedestal_joint" type="fixed">
+    <parent link="robot2_pedestal_link"/>
+    <child link="robot2_base_link"/>
+    <origin xyz="0 0 0.6" rpy="0 0 ${radians(90)}"/>
+  </joint>
+}

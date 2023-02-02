@@ -1,0 +1,5 @@
+use robot1
+go down 1
+go left 1
+go right 1
+go robot1Up

@@ -1,0 +1,259 @@
+6.1.1 Behavior design
+
+
+In previous weeks you have learned to implement basic robot capabilities in ROS. Now, to create a complete application you need to coordinate the execution of the nodes implementing those capabilities, so that it results in the desired behavior. You have seen how this applies to our pick example:
+	Detect object - use available package /camera node
+	Compute grasp - outputs joint values /grasp_planner node
+	Move to pick - Use MoveIt! service /move_group
+	Grasp - commands gripper /gripper
+	Retreat - Use MoveIt! service /move_group
+	Coordination?
+There are many behavior design methods: Finite state machines, Flowcharts, Behavior trees. In this course we will focus on state machines for robotics.
+
+A robot state machine:
+
+Defines behavior as a sequence of actions as a series of states that become active in an order given by the state transitions.
+Thus they are appropriate to design sequential behaviors.
+A a state represents an atomic action. Optionally:
+	consumes input data.
+	produces output data.
+Representation of states and transitions in a state machine:
+	States - blobs
+	Transitions - arrows
+
+
+6.2 Behavior design with FlexBE
+
+
+FlexBE is an open-source high-level behavior engine for ROS.
+FlexBE has a visual behavior editor, the FlexBE App.
+To create your state machine, you can simply drag and drop states and connect them, without manually coding it.
+But the FlexBE App also allows you to start the execution of the behavior and monitor this execution.
+The FlexBE App visual interface is complemented by additional tools that allow you to create your own repository of states and behaviors for your robot applications.
+
+
+6.2.2 Basics of FlexBE
+
+
+FlexBE elements
+FlexBE consist of different ROS packages, let's know a bit about them:
+
+Main FlexBE tools:
+
+	Flexbe App is a friendly user interface for creating our behaviors' state machines
+	flexbe_behaviour_engine this is the core of FlexBE, responsible for executing the behaviors that you will create with the Flexbe App. However, you will not interact directly with it, but through suitable launch files.
+	flexbe_widget a tool to create a new repository for your behaviors.
+ 
+FlexBE packages with behaviors and states:
+
+General FlexBE states Your ROS installation also contains packages with available FlexBE states that we can use in our behaviors. This is a very nice feature of FlexBE: some developers have made their state implementations available, so others, like us, can re-use them. In this course we will use states from the generic flexbe_states, the flexbe_manipulation_states and the flexbe_navigation_states
+
+States for our factory simulation: in this week downloads we provide you with additional FlexBE states, in hrwros_factory_states, that are used in the behaviors you will explore in the videos and the assignments.
+
+Behaviors for our factory simulation: the repository hrwros_factory_behaviors in this week downloads is your repository for the factory project, and is your FlexBE repository to develop robot behaviors. It already contains behaviors that are used in the videos and for the final assignment.
+
+$ rosrun flexbe_app run_app --offline
+You should see the FlexBE App user interface.
+
+
+6.2.3 FlexBE App user interface
+
+
+The FlexBE App user interface consists of a menu bar and a view area below.
+
+The FlexBE App menu contains:
+	Onboard status, indicates if FlexBE App is connected to your ROS application.
+	Select view allows to change the view.
+	Tools depending on the view we are currently on.
+FlexBE App views:
+	Behavior Dashboard view, where you can load and configure the properties of your behavior.
+	Statemachine editor view, where you define the behavior state machine.
+	Runtime Control view, for executing your behavior.
+	Configuration view to confgure your FlexBE installation.
+
+
+6.3.1 Creating a behavior - PART 1
+
+
+Fill "Overview" section
+
+
+6.3.1 Creating a behavior - PART 2
+
+
+we will continue working with the FlexBE App. You will learn how to configure your own state machine.
+
+"Add state" dialog has now a "package selection" drop menu. By default it's on ALL and has the same behavior as in the video. You can keep it that way, or use it to explore what states are available in the different ROS packages of your installation.
+You do not have a state "DetectPartState", but you can use the state "DetectPartCameraState" instead.
+The state of type "ComputeGraspState" has now more parameters, do not worry about it for the moment.
+The states "MoveitToJointsDynState" and "SrdfStateToMoveit" appear twice in the list.
+	If you hover the cursor over them you can see that the 'duplicates' are in two different repositories.
+	The states shown in the video correspond to those you have in "flexbe_manipulation_states".
+	We have created a different version of those states in the repository "hrwros_factory_states", Use these ones for this week's assignments.
+The Statemachine Editor is what you will often use when developing behaviors in FlexBE. 
+
+The most important tools are: 
+
+Add state
+Save behaviour (don't forget!)
+Every state machine has a single entry point, and automatically includes the behavior outcomes (concentric circles) you have configured in the Dashboard view, even before adding any states. 
+
+We added the necessary states for our demo behavior to pick up a part from a conveyor belt. 
+
+Tool overlay is a handy tool which you can activate by pressing ctrl+space. With this tool, you get basic editing commands, for example to copy and paste states. 
+
+
+6.3.1 Creating a behavior - PART 3
+
+
+connect the various outcomes from the states in the FlexBE App interface.
+
+The outcomes of a FlexBE State Machine are identified by two concentric circles.
+
+It's helpful to organise your states and transitions so they are clear in their order.
+Don't forget to connect the fail outcomes for when something goes wrong.
+If there are errors, the FlexBE app console will let you know what you need to fix.
+To complete the behavior, you will need to configure it some more.
+
+
+6.3.2 Configure a behavior
+
+
+We are almost done with creating our FlexBE behavior. In this video lecture, we will learn step by step how to define the data for our behavior.
+
+Behavior data will be defined in the behavior overview panel.
+Constants are useful for data that will never change during operation, but that you might want to change between versions. They are defined by using literals.
+Other data can changed during the behavior. Data like this is called userdata in FlexBE. They will need to have default values. You can use defined constants as the default value.
+
+
+6.3.3 State properties
+
+
+In this lecture, you will understand better what a FlexBE state is and what properties it has to interface with the behavior.
+
+Here are the values you can use for the parameters: 
+	(you can also check them loading the behavior example "Pick part from conveyor")
+	group: pick_group
+	offset: 0.0
+	joint_names: names1
+	tool_link: gripper1
+	rotation: 3.1415
+
+Remember:
+State encapsulates a single action
+Topics, services and Ros actions provide capabilities
+A FlexBE state:
+	Represents a specific action 
+State properties:
+	Parameters
+		configure static properties
+		you can give it any value corresponding to a valid ROS type
+		use a behaviour variable
+	Input & output keys
+		input key requires data
+		output keys produces data
+		dynamic: can take a different value every state activation
+		values are behaviour userdata variables
+	Outcomes
+		possible outcomes
+		possible transitions
+		possible execution flows
+
+
+6.3.4 Tutorial Compl. Pick behavior
+
+
+Don't forget to use quotation marks when entering literal string values.
+
+Don't forget to hit the Apply button when your done configuring a state.
+
+When stumbling across undetermined output keys,  you can do the following: hover over the name of the output key. This will show you what data type the output key expects. Next, you create a new user data variable with that data type.
+
+Sometimes it might seem that configuring the states of your behavior in FlexBE takes a lot of clicking. Often using the same variables. But think of how much work all this would be coding this in your own nodes or scripts, passing values trough functions and assigning them to variables. This would also be more prone to errors.
+
+State parameters (or input and output keys) can have the same or similar names the value you need to enter for another state parameter, but they are two different things. By coincidence names might be the same or similar.
+
+Don't forget to save the changes you made to your behavior!
+
+
+6.3.5 Executing a behavior with FlexBE
+
+
+$ roslaunch hrwros_gazebo hrwros_pick_demo.launch
+$ roslaunch flexbe_app flexbe_full.launch
+Runtime Control --> load ‘Pick part from conveyor’ behavior --> Start Execution
+
+Catch up
+From the previous part's we already know:
+	How to define user data and behavior variables in a FlexBE behavior.
+	How to configure the states in a FlexBE state machine, using the user data and behavior variables.
+	How to connect all the states in your FlexBE state machine to implement the desired behavior.
+In this part we learned:  
+	How to execute your FlexBE behavior using the Runtime Control view
+	That launching your ROS application and the whole FlexBE behavior engine are required steps to execute a behavior.
+	That with FlexBE you can easily integrate robot behaviors in ROS. Our demo behavior successfully coordinated the ROS nodes to pick a part in our factory!
+
+In the next unit you will learn what to do when there is no FlexBE state implementation available for one of the actions required in our behavior.
+
+
+6.4.1 Developing FlexBE States
+
+
+The design principles behind FlexBE states:
+	Separate your application-specific behavior (implemented in your FLexBE behavior), from the general robot capabilities you implement in ROS nodes.
+	FlexBE state implementations should interface with the nodes that implement the capabilities that they coordinate.
+A state implementation should:
+	Internally execute a specific robotic operation by implementing a client to the robot capability provided by some ROS node.
+	Provide an external interface that allows to configure the state for different behaviors:
+		Parameters to configure its static properties for the behavior.
+		Input and output keys to connect to runtime data.
+		Define the set of possible outcomes of the state execution.
+
+
+6.4.2 FlexBE States Lifecycle
+
+
+FlexBE State Lifecycle:
+
+The FlexBE State Lifecycle is a sequence of function calls inside a state implementation, defined by the EventState Python class.
+The functions in the FlexBE Lifecycle are associated to events in the state machine, triggered by the behavior engine.
+
+Sequential execution of the Lifecycle functions:
+
+_init_ : when the state machine is instantiated, the _init_ function of all the states is executed (it is the constructor of the states).
+on_start : this function is executed for all the states when the behavior starts executing (this provides a good place to initialize the resources used by the states)
+on_enter : executed only once when a state becomes active (typically the most used function, it is where any action or service request should be sent).
+execute : after on_enter, the execute method is called periodically while the state is active. Its main purpose is to check state conditions and trigger a corresponding outcome if the corresponding condition is met.
+other functions are: on_exit, on_stop
+Note: parallel state execution (so multiple states being active at the same time) is supported by FlexBE, but outside of the scope of this course.
+
+
+6.4.3 Program a FlexBE State (part 1)
+
+
+Before programming a FlexBE state implementation, think carefully about its design:
+	What should happen when our state becomes active?
+	What interface should my state have to be used in a state machine?
+	What outcomes can result from our state?
+	What parameters should it have to be configured for a behavior?
+	What data does it need to execute, and what data does it produce? This defines the input and output keys
+A FlexBE state is implemented as a Python class that implements the state Lifecycle:
+	It is important to properly document your state.
+	You have to implement the different functions in the state Lifecycle.
+
+
+6.4.3 Program a FlexBE State (part 2)
+
+
+You can use the state implementations you create in FlexBE state machines in the same way you would use other available states.
+
+After writing the code for your FlexBE state implementation:
+
+Close the FlexBE App if you had it open.
+When you open it again, your state implementation will be available on the list when you Add a new state.
+
+$ roslaunch hrwros_gazebo hrwros_pick_demo.launch
+$ roslaunch flexbe_app flexbe_full.launch
+
+open the app:
+$ rosrun flexbe_app run_app --offline
